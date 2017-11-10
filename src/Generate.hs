@@ -34,8 +34,13 @@ getUniform max = doUntil (< max) $ do
     byte <- random
     return $ byte .&. maskFor max
   where
+    -- compute the most restrictive mask that's still greater than max.
+    -- this will statistically reduce the likelyhood that we'll need to reject a
+    -- result.
     maskFor :: Word8 -> Word8
     maskFor n
+        -- I'm sure there's a less dumb way to compute this, but doing every
+        -- case is straightforward:
         | n < 2     = 1
         | n < 4     = 3
         | n < 8     = 7
@@ -61,7 +66,7 @@ choose vec = do
 data Options = Options
     { charSets :: [S.Set Char] -- ^ Sets of legal characters for the password.
                                -- The generated password will have at least
-                               -- one character from each set,
+                               -- one character from each set.
     , size     :: Int -- ^ The length of the password, in characters.
     }
 
