@@ -9,14 +9,18 @@ dvault: dead simple password manager
 
 # Basic operation
 
-To add a password, run:
+To generate a random password:
 
-    $ gpg -ae > ~/.local/dvault/${tag}.pass.asc
+    $ dvault gen $password_tag
 
-...and type in the password.
+where `$password_tag` is a name for the password. You may be prompted by
+gpg to enter recipients; make sure one of them is you!
 
-Running `dvault` will:
+Running `dvault` with no arguments will:
 
 * spawn `dmenu`, with a list of tags for passwords you've stored.
 * decrypt the password you select with gpg
 * copy it to the clipboard.
+
+Passwords are stored gpg-encrypted at
+`${HOME}/.local/dvault/${pasword_tag}.pass.asc`.

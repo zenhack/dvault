@@ -1,8 +1,10 @@
 module Main where
 
 import Control.Monad      (void)
+import Data.Default       (def)
+import Generate           (generate)
 import System.Directory   (createDirectoryIfMissing, listDirectory)
-import System.Environment (getEnv)
+import System.Environment (getArgs, getEnv)
 import System.IO          (hClose, hPutStr)
 import System.Process
     ( CreateProcess(..)
@@ -44,7 +46,21 @@ notify :: String -> IO ()
 notify summary = void $ readProcess "notify-send" ["-t", "2000", summary] ""
 
 main = do
+    args <- getArgs
     dir <- vaultDir
+    case args of
+        []            -> fetchPass dir
+        ["gen", name] -> newPass $ passFilename dir name
+        _             -> putStrLn "Usage: dvault [ gen <tag> ]"
+
+-- | Generate a new password and save it (encrypted) to the supplied path.
+newPass :: FilePath -> IO ()
+newPass path = do
+    plaintext <- generate def
+    ciphertext <- readProcess "gpg" ["-a", "-e"] plaintext
+    writeFile path ciphertext
+
+fetchPass dir = do
     sites <- map (`dropSuffix` theSuffix)
                 <$> filter (`endsWith` theSuffix)
                 <$> listDirectory dir
@@ -54,7 +70,6 @@ main = do
     xclip plaintext
     notify $ "Password for " ++ selection ++ " copied to clipboard."
   where
-    theSuffix = ".pass.asc"
     str    `endsWith` suffix | str == suffix = True
     []     `endsWith` _ = False
     (c:cs) `endsWith` suffix = cs `endsWith` suffix
@@ -62,3 +77,8 @@ main = do
 str    `dropSuffix` suffix | str == suffix = []
 []     `dropSuffix` _ = []
 (c:cs) `dropSuffix` suffix = c:(cs `dropSuffix` suffix)
+
+theSuffix = ".pass.asc"
+
+passFilename :: String -> String -> FilePath
+passFilename dir name = dir ++ "/" ++ name ++ theSuffix
