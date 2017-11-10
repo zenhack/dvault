@@ -19,18 +19,18 @@ letter = upper `S.union` lower
 digit = S.fromList ['0'..'9']
 symbol = S.fromList "~`!@#$%^&*(){}[]-+=_,.<>?/;:|\\'\""
 
--- | @untilM p m@ executes @m@ repeatedly, until it returns a value that
+-- | @doUntil p m@ executes @m@ repeatedly, until it returns a value that
 -- satisfies the predicate p.
-untilM :: Monad m => (a -> Bool) -> m a -> m a
-untilM p m = do
+doUntil :: Monad m => (a -> Bool) -> m a -> m a
+doUntil p m = do
     ret <- m
     if p ret
         then return ret
-        else untilM p m
+        else doUntil p m
 
 -- | @getUniform max@ gets a uniformly random value in the range [0, max).
 getUniform :: CryptoRNG m => Word8 -> m Word8
-getUniform max = untilM (< max) $ do
+getUniform max = doUntil (< max) $ do
     byte <- random
     return $ byte .&. maskFor max
   where
@@ -72,7 +72,7 @@ instance Default Options where
 
 getPassword :: CryptoRNG m => Options -> m String
 getPassword opts@Options{..} =
-    untilM isValid $ replicateM size $ choose vec
+    doUntil isValid $ replicateM size $ choose vec
   where
     vec = V.fromList $ S.toList $ S.unions charSets
     isValid pass   = and $ [pass `has`      set | set <- charSets]
