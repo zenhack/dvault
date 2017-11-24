@@ -1,3 +1,7 @@
+{-|
+Module: Main
+Description: dvault command line tool.
+-}
 module Main where
 
 import Control.Monad      (void)
@@ -17,8 +21,9 @@ import System.Process
 
 import qualified Data.ByteString as B
 
-vaultDir :: IO FilePath
-vaultDir = do
+-- | Get the directory in which to store our data.
+getVaultDir :: IO FilePath
+getVaultDir = do
     -- It's not entirely obvious to me(zenhack) what's the "right" place to
     -- put our data; the xdg base spec mentions an $XDG_DATA_HOME that falls
     -- back to $HOME/.local/share, but other programs put stuff in ~/.local
@@ -30,11 +35,14 @@ vaultDir = do
     createDirectoryIfMissing True path
     return path
 
+-- | @'dmenu' options@ launches the dmenu(1) command, supplying it with
+-- @options@, and returning the user's choice.
 dmenu :: [String] -> IO String
 dmenu options = fmap stripNewline $ readProcess "dmenu" [] $ unlines options
   where
     stripNewline = takeWhile (/= '\n')
 
+-- | @'xclip' foo@ copies the string @foo@ to both x11 clipboards.
 xclip :: String -> IO ()
 xclip contents = do
     xclipI ["-sel", "clip"]
@@ -48,12 +56,13 @@ xclip contents = do
         hClose inpipe
         void $ waitForProcess pid
 
+-- | Send a desktop notification
 notify :: String -> IO ()
 notify summary = void $ readProcess "notify-send" ["-t", "2000", summary] ""
 
 main = do
     args <- getArgs
-    dir <- vaultDir
+    dir <- getVaultDir
     case args of
         []            -> fetchPass dir
         ["gen", name] -> newPass $ passFilename dir name
@@ -66,6 +75,9 @@ newPass path = do
     ciphertext <- readProcess "gpg" ["-a", "-e"] plaintext
     writeFile path ciphertext
 
+-- | Prompt the user for a password label given the available passwords in
+-- directory @dir@, then decrypt then user's choice and copy it to the
+-- x11 clipboards.
 fetchPass dir = do
     sites <- map (`dropSuffix` theSuffix)
                 <$> filter (`endsWith` theSuffix)
@@ -84,7 +96,10 @@ str    `dropSuffix` suffix | str == suffix = []
 []     `dropSuffix` _ = []
 (c:cs) `dropSuffix` suffix = c:(cs `dropSuffix` suffix)
 
+-- | Suffix to append to the password's label to form a filename.
 theSuffix = ".pass.asc"
 
+-- | @'passFilename' vaultdir label@ is the file in which the password for @label@
+-- is stored, given the storage directory @vaultdir@.
 passFilename :: String -> String -> FilePath
 passFilename dir name = dir ++ "/" ++ name ++ theSuffix

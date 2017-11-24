@@ -1,4 +1,8 @@
 {-# LANGUAGE RecordWildCards #-}
+{-|
+Module: Generate
+Description: Core logic for password generation.
+-}
 module Generate
     (generate, Options(..), upper, lower, letter, digit, symbol)
   where
@@ -13,10 +17,19 @@ import Data.Word
 import qualified Data.Set    as S
 import qualified Data.Vector as V
 
+-- | Set of lowercase ascii letters
 lower = S.fromList ['a'..'z']
+
+-- | Set of uppercase ascii letters
 upper = S.fromList ['A'..'Z']
+
+-- | Set of ascii letters
 letter = upper `S.union` lower
+
+-- | Set of digits ('0' through '9')
 digit = S.fromList ['0'..'9']
+
+-- | Set of special characters
 symbol = S.fromList "~`!@#$%^&*(){}[]-+=_,.<>?/;:|\\'\""
 
 -- | @doUntil p m@ executes @m@ repeatedly, until it returns a value that
@@ -83,6 +96,7 @@ getPassword opts@Options{..} =
     isValid pass   = and $ [pass `has`      set | set <- charSets]
     pass `has` set = or  $ [char `S.member` set | char <- pass]
 
+-- | Generate a cryptographically random password, using the provided options.
 generate :: Options -> IO String
 generate opts = do
     state <- newCryptoRNGState
