@@ -4,11 +4,14 @@ Description: dvault command line tool.
 -}
 module Main where
 
+import Generate
+
 import Control.Monad      (void)
 import Data.Default       (def)
-import Generate           (generate)
+import Data.Maybe         (fromMaybe)
 import System.Directory   (createDirectoryIfMissing, listDirectory)
 import System.Environment (getArgs, getEnv)
+import System.Exit        (exitFailure, exitSuccess)
 import System.IO          (hClose, hPutStr)
 import System.Process
     ( CreateProcess(..)
@@ -18,8 +21,10 @@ import System.Process
     , readProcess
     , waitForProcess
     )
+import Text.Read          (readMaybe)
 
 import qualified Data.ByteString as B
+import qualified Data.Set        as S
 
 -- | Get the directory in which to store our data.
 getVaultDir :: IO FilePath
@@ -64,14 +69,70 @@ main = do
     args <- getArgs
     dir <- getVaultDir
     case args of
-        []            -> fetchPass dir
-        ["gen", name] -> newPass $ passFilename dir name
-        _             -> putStrLn "Usage: dvault [ gen <tag> ]"
+        ["-h"] -> usage >> exitSuccess
+        ["--help"] -> usage >> exitSuccess
+        []                -> fetchPass dir
+        [arg] | arg `elem` ["-h", "--help"] -> usage >> exitSuccess
+        ("gen":name:args)
+            | name `elem` ["-h", "--help"] -> usage >> exitSuccess
+            | otherwise -> do
+                opts <- genCmd Nothing S.empty args
+                newPass opts (passFilename dir name)
+        _ -> usage >> exitFailure
+
+usage = putStrLn $ unlines
+    [ "Usage: dvault [ gen <tag> [ CHARSET... ] | -h | --help ]"
+    , ""
+    , "where CHARSET is one of:"
+    , ""
+    , "    --letters"
+    , "    --upper"
+    , "    --lower"
+    , "    --digits"
+    , "    --symbols"
+    , ""
+    , "Note that --letters cannot be combined with --upper or --lower."
+    ]
+
+genCmd :: Maybe Int -> S.Set (S.Set Char) -> [String] -> IO Options
+genCmd _ sets _ | seq sets False = undefined -- force `sets` to be evaluated.
+genCmd argSize sets []
+    | letter `S.member` sets &&
+        (lower `S.member` sets || upper `S.member` sets)
+        = do
+            putStrLn $ "Error : You cannot specify both --letters and " ++
+                "either --upper or --lower."
+            usage >> exitFailure
+    | otherwise = return
+        Options
+            { size = size def `fromMaybe` argSize
+            , charSets = if S.null sets
+                then charSets def
+                else S.toList sets
+            }
+genCmd Nothing sets ("--size":size:args) = case readMaybe size of
+    Just size' -> genCmd (Just size') sets args
+    Nothing    -> usage >> exitFailure
+genCmd (Just size) _ ("--size":_) = usage >> exitFailure
+genCmd size sets ("--letters":args) =
+    genCmd size (S.insert letter sets) args
+genCmd size sets ("--upper":args) =
+    genCmd size (S.insert upper sets) args
+genCmd size sets ("--lower":args) =
+    genCmd size (S.insert lower sets) args
+genCmd size sets ("--digits":args) =
+    genCmd size (S.insert digit sets) args
+genCmd size sets ("--symbols":args) =
+    genCmd size (S.insert symbol sets) args
+genCmd _ _ ("--help":_) = usage >> exitSuccess
+genCmd _ _ ("-h":_) = usage >> exitSuccess
+genCmd _ _ _ = usage >> exitFailure
+
 
 -- | Generate a new password and save it (encrypted) to the supplied path.
-newPass :: FilePath -> IO ()
-newPass path = do
-    plaintext <- generate def
+newPass :: Options -> FilePath -> IO ()
+newPass opts path = do
+    plaintext <- generate opts
     ciphertext <- readProcess "gpg" ["-a", "-e"] plaintext
     writeFile path ciphertext
 
