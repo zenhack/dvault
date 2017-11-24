@@ -19,6 +19,12 @@ import qualified Data.ByteString as B
 
 vaultDir :: IO FilePath
 vaultDir = do
+    -- It's not entirely obvious to me(zenhack) what's the "right" place to
+    -- put our data; the xdg base spec mentions an $XDG_DATA_HOME that falls
+    -- back to $HOME/.local/share, but other programs put stuff in ~/.local
+    -- outside of ~/.local/share, and ~/.local/share doesn't feel right.
+    -- If this were system wide, the right place would probably be /var/lib,
+    -- but there's no xdg homedir equivalent. For now, we just do ~/.local
     home <- getEnv "HOME"
     let path = home ++ "/.local/dvault"
     createDirectoryIfMissing True path
