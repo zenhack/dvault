@@ -81,7 +81,7 @@ main = do
         _ -> usage >> exitFailure
 
 usage = putStrLn $ unlines
-    [ "Usage: dvault [ gen <tag> [ CHARSET... ] | -h | --help ]"
+    [ "Usage: dvault [ gen <tag> [ --size <size> ] [ CHARSET... ] ] | -h | --help"
     , ""
     , "where CHARSET is one of:"
     , ""
