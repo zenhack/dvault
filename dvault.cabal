@@ -27,7 +27,7 @@ executable dvault
     bytestring >=0.10 && <0.11,
     crypto-rng >=0.1 && <0.2,
     vector >=0.12 && <0.13,
-    containers >=0.5 && <0.6,
+    containers >=0.5 && <0.7,
     data-default >=0.7 && <0.8,
     base >=4.10 && <5.0
   hs-source-dirs:      src
