@@ -1,4 +1,8 @@
+# Standard Haskell stuff:
 /dist
 /dist-newstyle
 *.swp
 .ghc.*
+
+# Nix stuff:
+result
