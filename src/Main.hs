@@ -52,10 +52,12 @@ xclip :: String -> IO ()
 xclip contents = do
     xclipI ["-sel", "clip"]
     xclipI []
+    putProc "wl-copy" []
   where
-    xclipI args = do
+    xclipI args = putProc "xclip" ("-i":args)
+    putProc cmd args = do
         -- For some reason I don't understand, just doing readProcess hangs.
-        let p = (proc "xclip" ("-i":args)) { std_in = CreatePipe }
+        let p = (proc cmd args) { std_in = CreatePipe }
         (Just inpipe, Nothing, Nothing, pid) <- createProcess p
         hPutStr inpipe contents
         hClose inpipe
