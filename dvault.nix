@@ -8,7 +8,7 @@ mkDerivation {
   isLibrary = false;
   isExecutable = true;
   executableHaskellDepends = [
-    base bytestring containers crypto-rng data-default directory
+    base bytestring containers crypto-api monadcryptorandom data-default directory
     process vector
   ];
   homepage = "https://github.com/zenhack/dvault";
