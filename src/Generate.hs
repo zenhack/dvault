@@ -1,4 +1,5 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards     #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-|
 Module: Generate
 Description: Core logic for password generation.
@@ -8,11 +9,14 @@ module Generate
   where
 import qualified Data.ByteString as B
 
-import Control.Monad (replicateM, when)
-import Crypto.RNG    (CryptoRNG, newCryptoRNGState, random, runCryptoRNGT)
-import Data.Bits
-import Data.Default  (Default(def))
-import Data.Word
+import           Control.Exception          (throwIO)
+import           Control.Monad              (replicateM, when)
+import qualified Control.Monad.CryptoRandom as CR
+import           Data.Bits
+import           Data.Default               (Default(def))
+import           Data.Word
+
+import Crypto.Random (SystemRandom)
 
 import qualified Data.Set    as S
 import qualified Data.Vector as V
@@ -42,9 +46,9 @@ doUntil p m = do
         else doUntil p m
 
 -- | @getUniform max@ gets a uniformly random value in the range [0, max).
-getUniform :: CryptoRNG m => Word8 -> m Word8
+getUniform :: CR.MonadCRandom e m => Word8 -> m Word8
 getUniform max = doUntil (< max) $ do
-    byte <- random
+    byte <- CR.getCRandom
     return $ byte .&. maskFor max
   where
     -- compute the most restrictive mask that's still greater than max.
@@ -67,7 +71,7 @@ getUniform max = doUntil (< max) $ do
 
 -- | Select a random element from the vector. If the vector's length cannot
 -- be represented by a Word8, an error occurs.
-choose :: CryptoRNG m => V.Vector a -> m a
+choose :: CR.MonadCRandom e m => V.Vector a -> m a
 choose vec = do
     let len = V.length vec
     when (len > 255) $ error "too many elements"
@@ -88,7 +92,7 @@ instance Default Options where
                   , size = 20
                   }
 
-getPassword :: CryptoRNG m => Options -> m String
+getPassword :: CR.MonadCRandom e m => Options -> m String
 getPassword opts@Options{..} =
     doUntil isValid $ replicateM size $ choose vec
   where
@@ -99,5 +103,7 @@ getPassword opts@Options{..} =
 -- | Generate a cryptographically random password, using the provided options.
 generate :: Options -> IO String
 generate opts = do
-    state <- newCryptoRNGState
-    runCryptoRNGT state (getPassword opts)
+    g :: SystemRandom <- CR.newGenIO
+    case CR.runCRand (getPassword opts) g of
+        Right (s, _g')         -> pure s
+        Left (e ::CR.GenError) -> throwIO e
